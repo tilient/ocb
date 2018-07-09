@@ -8,7 +8,7 @@ void main ()
   enum webdavroot =
     "https://wiffel.stackstorage.com/remote.php/webdav/";
   enum username = "wiffel";
-  enum password = "ttT1l1ent";
+  enum password = "brol";
 
   auto target = webdavroot ~ "media/ttt";
   auto pid = spawnProcess([
