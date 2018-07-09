@@ -6,8 +6,8 @@ void main ()
   enum wiffeltje =
     "https://wiffeltje.stackstorage.com/remote.php/webdav/";
 
-  check("/home/wiffel/Videos/", wiffeltje ~ "media/Videos");
-  check("/home/wiffel/Videos/", wiffel    ~ "media/Videos");
+  //check("/home/wiffel/Videos/", wiffeltje ~ "media/Videos");
+  //check("/home/wiffel/Videos/", wiffel    ~ "media/Videos");
   check("/home/wiffel/Music/",  wiffel    ~ "media/Music");
   check("/home/wiffel/Music/",  wiffeltje ~ "media/Music");
 }
@@ -20,65 +20,59 @@ void check(string fileroot, string webdavroot)
 
   writeln("==============================================");
   writeln(fileroot);
+  writeln(" =>");
   writeln(webdavroot);
   writeln("==============================================");
   foreach (DirEntry e; dirEntries(fileroot, SpanMode.breadth))
   {
     auto shortName = e.name[fileroot.length .. $];
     auto displayName = shortName;
-    if (displayName.length > 43)
+    if (displayName.length > 63)
       displayName =
-        shortName[0 .. 20] ~ "..." ~ shortName[$-20 .. $];
+        shortName[0 .. 30] ~ "..." ~ shortName[$-30 .. $];
     WebDavEntry entry;
+    writeln(displayName);
     if (webdavFileInfo(webdavroot, shortName, entry))
     {
-      if (entry.isDir)
+      if (entry.isFile && (e.size != entry.size))
       {
-        //write("OK Dir");
-      } else {
-        if (e.size == entry.size)
-        {
-          //write("OK    ");
-        } else {
-          writeln("** Not OK");
-          write("** ");
-          writeln(e.name);
-        }
+        writeln("** Not OK");
+        writeln("-- ", e.size, " <> ", entry.size);
+        write("-- ");
+        writeln(e.name);
+
+        auto ttt = webdavUri(webdavroot, shortName);
+        writeln("curl -n -T '" ~ e.name ~ "' '" ~ ttt ~ "'");
+        writeln();
       }
     } else {
       writeln("** Not Found");
-      write("** ");
+      write("-- ");
       writeln(e.name);
-    }
-    //writeln(" - '", displayName, "'");
-  }
 
-//   enum webdavroot =
-//     "https://wiffel.stackstorage.com/remote.php/webdav/";
-//
-//   auto target = webdavroot ~ "media/ttt";
-//   auto pid = spawnProcess([
-//       "curl",
-//       "-u", username ~ ":" ~ password,
-//       "--anyauth",
-//       "-X", "MKCOL",
-//       target]);
-//   wait(pid);
-//
-//   pid = spawnProcess([
-//       "curl",
-//       "-u", username ~ ":" ~ password,
-//       "--anyauth",
-//       "-X", "DELETE",
-//       target]);
-//   wait(pid);
+      auto ttt = webdavUri(webdavroot, shortName);
+      writeln("curl -n -T '" ~ e.name ~ "' '" ~ ttt ~ "'");
+      writeln();
+    }
+  }
 }
 
 struct WebDavEntry
 {
-  string name  = "";
-  ulong  size  = -1;
-  bool   isDir = false;
+  string name   = "";
+  ulong  size   = -1;
+  bool   isFile = true;
+}
+
+string webdavUri(string root, string target)
+{
+  import std.path : pathSplitter;
+  import std.uri : encodeComponent;
+
+  auto uri = root;
+  foreach(part; pathSplitter(target))
+    uri ~= "/" ~ part.encodeComponent;
+  return uri;
 }
 
 bool webdavFileInfo(string root, string trgt,
@@ -87,20 +81,17 @@ bool webdavFileInfo(string root, string trgt,
   import std.stdio: stdin, writeln;
   import std.process: spawnProcess, pipe, wait;
   import std.xml: check, DocumentParser, ElementParser, Element;
-  import std.uri: encodeComponent;
   import std.conv;
-  import std.path;
 
-
-  auto target = root;
-  foreach(part; pathSplitter(trgt))
-    target ~= "/" ~ part.encodeComponent;
   entry.name = trgt;
+
   auto p = pipe();
   auto pid = spawnProcess([
                "curl", "-s", "--anyauth", "-n",
                "-X", "PROPFIND", "-H", "Depth:0",
-               target], stdin, p.writeEnd);
+               webdavUri(root, trgt)],
+               stdin, p.writeEnd);
+  scope(exit) wait(pid);
 
   string xmlStr;
   foreach (line; p.readEnd.byLine)
@@ -110,23 +101,14 @@ bool webdavFileInfo(string root, string trgt,
 
   check(xmlStr);
   auto xml = new DocumentParser(xmlStr);
-
   xml.onStartTag["d:response"] = (ElementParser xml)
   {
-    auto displayname = "";
-    auto resourcetype = "";
-    auto contentLength = "";
-    xml.onEndTag["d:displayname"] =
-      (in Element e) { displayname = e.text(); };
-    xml.onEndTag["d:resourcetype"] =
-      (in Element e) {
-        entry.isDir = e.text() != "";
-      };
-    xml.onEndTag["d:getcontentlength"] =
-      (in Element e) {
-        contentLength = e.text();
-        entry.size =  to!ulong(e.text);
-      };
+    xml.onEndTag["d:resourcetype"] = (in Element e) {
+      entry.isFile = e.text() == "";
+    };
+    xml.onEndTag["d:getcontentlength"] = (in Element e) {
+      entry.size =  to!ulong(e.text);
+    };
     xml.parse();
   };
   xml.parse();
