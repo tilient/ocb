@@ -6,8 +6,8 @@ void main ()
   enum wiffeltje =
     "https://wiffeltje.stackstorage.com/remote.php/webdav/";
 
-  //check("/home/wiffel/Videos/", wiffeltje ~ "media/Videos");
-  //check("/home/wiffel/Videos/", wiffel    ~ "media/Videos");
+  check("/home/wiffel/Videos/", wiffeltje ~ "media/Videos");
+  check("/home/wiffel/Videos/", wiffel    ~ "media/Videos");
   check("/home/wiffel/Music/",  wiffel    ~ "media/Music");
   check("/home/wiffel/Music/",  wiffeltje ~ "media/Music");
 }
@@ -25,6 +25,8 @@ void check(string fileroot, string webdavroot)
   writeln("==============================================");
   foreach (DirEntry e; dirEntries(fileroot, SpanMode.breadth))
   {
+    if (e.isDir)
+      continue;
     auto shortName = e.name[fileroot.length .. $];
     auto displayName = shortName;
     if (displayName.length > 63)
