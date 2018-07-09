@@ -1,40 +1,56 @@
 
 void main ()
 {
+  enum wiffel =
+    "https://wiffel.stackstorage.com/remote.php/webdav/";
+  enum wiffeltje =
+    "https://wiffeltje.stackstorage.com/remote.php/webdav/";
+
+  check("/home/wiffel/Videos/", wiffeltje ~ "media/Videos");
+  check("/home/wiffel/Videos/", wiffel    ~ "media/Videos");
+  check("/home/wiffel/Music/",  wiffel    ~ "media/Music");
+  check("/home/wiffel/Music/",  wiffeltje ~ "media/Music");
+}
+
+void check(string fileroot, string webdavroot)
+{
   import std.stdio;
   import std.file;
   import std.conv;
 
-  auto cnt = 0;
-  enum fileroot = "/mnt/c/wiffel/public/";
-  enum webdavroot =
-    "https://wiffel.stackstorage.com/remote.php/webdav/public/";
+  writeln("==============================================");
+  writeln(fileroot);
+  writeln(webdavroot);
+  writeln("==============================================");
   foreach (DirEntry e; dirEntries(fileroot, SpanMode.breadth))
   {
-    cnt++;
-    if (cnt < 8)
-      continue;
-
     auto shortName = e.name[fileroot.length .. $];
     auto displayName = shortName;
     if (displayName.length > 43)
       displayName =
         shortName[0 .. 20] ~ "..." ~ shortName[$-20 .. $];
-    writeln(e.isDir ? "D - " : "F - ",
-            "(", e.isDir ? "" : to!string(e.size), ") ",
-            "'", displayName, "'",);
-    //writeln(shortName);
     WebDavEntry entry;
     if (webdavFileInfo(webdavroot, shortName, entry))
     {
-      writeln(entry.isDir ? "D - " : "F - ",
-            "(", e.isDir ? "" : to!string(entry.size), ") ");
+      if (entry.isDir)
+      {
+        //write("OK Dir");
+      } else {
+        if (e.size == entry.size)
+        {
+          //write("OK    ");
+        } else {
+          writeln("** Not OK");
+          write("** ");
+          writeln(e.name);
+        }
+      }
     } else {
-      writeln("Not Found");
+      writeln("** Not Found");
+      write("** ");
+      writeln(e.name);
     }
-    writeln("---------------------------");
-    // if (cnt > 119)
-    //   break;
+    //writeln(" - '", displayName, "'");
   }
 
 //   enum webdavroot =
@@ -68,14 +84,18 @@ struct WebDavEntry
 bool webdavFileInfo(string root, string trgt,
                     ref WebDavEntry entry)
 {
-  import std.stdio: stdin;
+  import std.stdio: stdin, writeln;
   import std.process: spawnProcess, pipe, wait;
   import std.xml: check, DocumentParser, ElementParser, Element;
   import std.uri: encodeComponent;
   import std.conv;
+  import std.path;
 
+
+  auto target = root;
+  foreach(part; pathSplitter(trgt))
+    target ~= "/" ~ part.encodeComponent;
   entry.name = trgt;
-  auto target = root ~ trgt.encodeComponent;
   auto p = pipe();
   auto pid = spawnProcess([
                "curl", "-s", "--anyauth", "-n",
