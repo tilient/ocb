@@ -44,7 +44,7 @@ void check(string fileroot, string webdavroot)
         writeln(e.name);
 
         auto ttt = webdavUri(webdavroot, shortName);
-        writeln("curl -n -T '" ~ e.name ~ "' '" ~ ttt ~ "'");
+        writeln("curl -n -T \"" ~ e.name ~ "\" \"" ~ ttt ~ "\"");
         writeln();
       }
     } else {
@@ -53,7 +53,7 @@ void check(string fileroot, string webdavroot)
       writeln(e.name);
 
       auto ttt = webdavUri(webdavroot, shortName);
-      writeln("curl -n -T '" ~ e.name ~ "' '" ~ ttt ~ "'");
+      writeln("curl -n -T \"" ~ e.name ~ "\" \"" ~ ttt ~ "\"");
       writeln();
     }
   }
